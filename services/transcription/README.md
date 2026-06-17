@@ -2,7 +2,7 @@
 
 FastAPI service for the Speech-to-Text pipeline.
 
-Phase 1 currently includes only the service scaffold and health endpoint. Faster-Whisper and transcription are not implemented yet.
+Phase 1 currently includes the service scaffold, health endpoint, and Faster-Whisper model initialization. Transcription endpoints are not implemented yet.
 
 ## Setup
 
@@ -26,6 +26,14 @@ Create a local environment file:
 cp .env.example .env
 ```
 
+Optional model settings:
+
+```env
+TRANSCRIPTION_MODEL=small
+TRANSCRIPTION_DEVICE=cpu
+TRANSCRIPTION_COMPUTE_TYPE=int8
+```
+
 ## Run Locally
 
 Start the development server:
@@ -33,6 +41,8 @@ Start the development server:
 ```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
+
+The Faster-Whisper model loads once during application startup. The first run may download the selected model, so startup can take longer than usual.
 
 ## Health Check
 
@@ -56,3 +66,5 @@ Expected response:
   "service": "transcription"
 }
 ```
+
+If the server starts successfully and `/health` responds, the model initialized successfully during startup.
