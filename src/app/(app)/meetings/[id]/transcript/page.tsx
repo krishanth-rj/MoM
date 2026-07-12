@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { transcribeAudio } from "@/actions/transcribe";
+import { useMeetingFlow } from "@/components/meeting/meeting-context";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { useMeetingFlow } from "@/components/meeting/meeting-context";
-import { transcribeAudio } from "@/actions/transcribe";
 
 export default function TranscriptPage() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function TranscriptPage() {
 
   useEffect(() => {
     if (step !== "processing") return;
-    
+
     const processAudio = async () => {
       if (!meetingData?.audioFileId) {
         setError("Audio file not found. Please try again.");
@@ -39,23 +39,39 @@ export default function TranscriptPage() {
         });
       }, 300);
 
+      if (!meetingId) {
+        setError("Meeting ID not found. Please try again.");
+        setStep("review");
+        return;
+      }
+
       try {
-        const result = await transcribeAudio(meetingId!, meetingData.audioFileId);
-        
+        const result = await transcribeAudio(
+          meetingId,
+          meetingData.audioFileId,
+        );
+
         clearInterval(iv);
         setProgress(100);
-        
+
         if (result.success && result.transcript_text) {
           setTranscript(result.transcript_text);
-          setMeetingData({ ...meetingData, transcript: result.transcript_text });
+          setMeetingData({
+            ...meetingData,
+            transcript: result.transcript_text,
+          });
           setTimeout(() => setStep("review"), 500);
         } else {
-          setError(result.error || "Unable to process audio. Please try again.");
+          setError(
+            result.error || "Unable to process audio. Please try again.",
+          );
           setStep("review");
         }
-      } catch (err) {
+      } catch (_err) {
         clearInterval(iv);
-        setError("Unable to connect to transcription service. Please try again later.");
+        setError(
+          "Unable to connect to transcription service. Please try again later.",
+        );
         setStep("review");
       }
     };

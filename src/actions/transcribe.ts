@@ -1,7 +1,5 @@
 "use server";
 
-import { NextResponse } from "next/server";
-
 export async function transcribeAudio(
   meetingId: string,
   audioFileId: string,

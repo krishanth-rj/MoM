@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { transcribeAudio } from "@/lib/ai/whisper";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/types/database";
-import { transcribeAudio } from "@/lib/ai/whisper";
 
 type TranscribeRequestBody = {
   meeting_id?: string;
@@ -83,7 +83,11 @@ export async function POST(request: Request) {
     }
 
     try {
-      const transcription = await transcribeAudio(audioUrl, meeting_id, audio_file_id);
+      const transcription = await transcribeAudio(
+        audioUrl,
+        meeting_id,
+        audio_file_id,
+      );
 
       // Insert transcript into DB
       type TranscriptInsert =
@@ -115,7 +119,10 @@ export async function POST(request: Request) {
         .eq("user_id", user.id);
 
       if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+        return NextResponse.json(
+          { error: updateError.message },
+          { status: 500 },
+        );
       }
 
       return NextResponse.json({
@@ -124,17 +131,20 @@ export async function POST(request: Request) {
         transcript_text: transcript.transcript_text,
       });
     } catch (transcriptionError: unknown) {
-      const message =
+      const _message =
         transcriptionError instanceof Error
           ? transcriptionError.message
           : "Transcription failed";
-      
+
       // Log technical details server-side only
       console.error("Transcription error:", transcriptionError);
-      
+
       // Return user-friendly error
       return NextResponse.json(
-        { error: "Unable to connect to the transcription service. Please try again later." },
+        {
+          error:
+            "Unable to connect to the transcription service. Please try again later.",
+        },
         { status: 503 },
       );
     }

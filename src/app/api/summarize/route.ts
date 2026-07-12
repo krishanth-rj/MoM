@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { generateSummary, type SummarizeInput } from "@/lib/ai/summarization";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -15,7 +15,8 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { transcript, meetingTitle, participants, agenda } = body as SummarizeInput;
+    const { transcript, meetingTitle, participants, agenda } =
+      body as SummarizeInput;
 
     if (!transcript) {
       return NextResponse.json(
@@ -43,10 +44,12 @@ export async function POST(request: Request) {
     } catch (summarizationError: unknown) {
       // Log technical details server-side only
       console.error("Summarization error:", summarizationError);
-      
+
       // Return user-friendly error
       return NextResponse.json(
-        { error: "Unable to generate meeting summary. Please try again later." },
+        {
+          error: "Unable to generate meeting summary. Please try again later.",
+        },
         { status: 502 },
       );
     }

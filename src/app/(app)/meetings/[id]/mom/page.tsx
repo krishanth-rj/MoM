@@ -1,33 +1,72 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { useEffect, useState } from "react";
+import { generateMom } from "@/actions/generate-mom";
 import { useMeetingFlow } from "@/components/meeting/meeting-context";
 import { MomRenderer } from "@/components/meeting/mom-renderer";
-import { generateMom } from "@/actions/generate-mom";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+
+import type { StructuredOutput } from "@/lib/ai/summarization";
 
 export default function MomViewerPage() {
   const router = useRouter();
-  const { meetingData, meetingId } = useMeetingFlow();
+  const { meetingData } = useMeetingFlow();
 
   const [step, setStep] = useState<"generating" | "view">("generating");
   const [progress, setProgress] = useState(0);
-  const [momData, setMomData] = useState<any>(null);
   const [momText, setMomText] = useState("");
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const formatMomText = (data: StructuredOutput): string => {
+    if (!data) return "";
+
+    let text = `# Minutes of Meeting\n\n`;
+    text += `**Executive Summary**\n${data.executive_summary || ""}\n\n`;
+    text += `## Meeting Summary\n${data.meeting_summary || ""}\n\n`;
+    text += `## Key Highlights\n`;
+    if (data.highlights?.length) {
+      data.highlights.forEach((h: string) => {
+        text += `- ${h}\n`;
+      });
+    }
+    text += `\n## Decisions\n`;
+    if (data.decisions?.length) {
+      data.decisions.forEach((d: string) => {
+        text += `- ${d}\n`;
+      });
+    }
+    text += `\n## Action Items\n`;
+    if (data.action_items?.length) {
+      data.action_items.forEach((item) => {
+        text += `- [ ] ${item.task} (Assignee: ${item.owner}${item.deadline ? `, Due: ${item.deadline}` : ""})\n`;
+      });
+    }
+    text += `\n## Risks\n`;
+    if (data.risks?.length) {
+      data.risks.forEach((r: string) => {
+        text += `- ${r}\n`;
+      });
+    }
+    text += `\n## Standard Operating Procedure\n`;
+    if (data.sop?.length) {
+      data.sop.forEach((s: string) => {
+        text += `${s}\n`;
+      });
+    }
+
+    return text;
+  };
 
   useEffect(() => {
     if (step !== "generating") return;
 
     const generate = async () => {
       if (!meetingData?.transcript) {
-        setError("No transcript available");
+        console.error("No transcript available for MoM generation");
         setStep("view");
         return;
       }
@@ -54,68 +93,27 @@ export default function MomViewerPage() {
         setProgress(100);
 
         if (result.success && result.mom) {
-          setMomData(result.mom);
           const formatted = formatMomText(result.mom);
           setMomText(formatted);
           setTimeout(() => setStep("view"), 500);
         } else {
-          setError("Unable to generate meeting summary. Please try again later.");
+          console.error("MoM generation failed:", result.error);
           setStep("view");
         }
-      } catch (err) {
+      } catch (_err) {
         clearInterval(iv);
-        setError("AI service temporarily unavailable. Please try again later.");
+        console.error("MoM generation error:", _err);
         setStep("view");
       }
     };
 
     generate();
-  }, [step, meetingData]);
+  }, [step, meetingData, formatMomText]);
 
   const copy = () => {
     navigator.clipboard?.writeText(momText.replace(/\*\*/g, ""));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const formatMomText = (data: any): string => {
-    if (!data) return "";
-    
-    let text = `# Minutes of Meeting\n\n`;
-    text += `**Executive Summary**\n${data.executive_summary || ""}\n\n`;
-    text += `## Meeting Summary\n${data.meeting_summary || ""}\n\n`;
-    text += `## Key Highlights\n`;
-    if (data.highlights?.length) {
-      data.highlights.forEach((h: string) => {
-        text += `- ${h}\n`;
-      });
-    }
-    text += `\n## Decisions\n`;
-    if (data.decisions?.length) {
-      data.decisions.forEach((d: string) => {
-        text += `- ${d}\n`;
-      });
-    }
-    text += `\n## Action Items\n`;
-    if (data.action_items?.length) {
-      data.action_items.forEach((item: any) => {
-        text += `- [ ] ${item.task} (Assignee: ${item.owner}${item.deadline ? `, Due: ${item.deadline}` : ""})\n`;
-      });
-    }
-    text += `\n## Risks\n`;
-    if (data.risks?.length) {
-      data.risks.forEach((r: string) => {
-        text += `- ${r}\n`;
-      });
-    }
-    text += `\n## Standard Operating Procedure\n`;
-    if (data.sop?.length) {
-      data.sop.forEach((s: string) => {
-        text += `${s}\n`;
-      });
-    }
-    
-    return text;
   };
 
   const handleSave = () => {

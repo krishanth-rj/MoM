@@ -1,13 +1,13 @@
 "use server";
 
-import { NextResponse } from "next/server";
+import type { StructuredOutput } from "@/lib/ai/summarization";
 
 export async function generateMom(
   transcript: string,
   meetingTitle: string,
   participants: string,
   agenda: string,
-): Promise<{ success: boolean; mom?: any; error?: string }> {
+): Promise<{ success: boolean; mom?: StructuredOutput; error?: string }> {
   try {
     const response = await fetch("/api/summarize", {
       method: "POST",
@@ -33,7 +33,7 @@ export async function generateMom(
 
     return {
       success: true,
-      mom: data,
+      mom: data as StructuredOutput,
     };
   } catch (error) {
     return {

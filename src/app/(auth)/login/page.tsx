@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -52,7 +52,9 @@ export default function LoginPage() {
       return;
     }
 
-    setErrorMessage("Account created. Check your email to confirm your signup.");
+    setErrorMessage(
+      "Account created. Check your email to confirm your signup.",
+    );
   };
 
   return (
@@ -97,10 +99,14 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-8">
             {tab === "signup" && (
               <div>
-                <label className="block text-xs uppercase tracking-widest font-bold text-muted-foreground mb-3">
+                <label
+                  htmlFor="fullName"
+                  className="block text-xs uppercase tracking-widest font-bold text-muted-foreground mb-3"
+                >
                   Full Name
                 </label>
                 <Input
+                  id="fullName"
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
@@ -110,10 +116,14 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label className="block text-xs uppercase tracking-widest font-bold text-muted-foreground mb-3">
+              <label
+                htmlFor="email"
+                className="block text-xs uppercase tracking-widest font-bold text-muted-foreground mb-3"
+              >
                 Email Address
               </label>
               <Input
+                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -123,10 +133,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs uppercase tracking-widest font-bold text-muted-foreground mb-3">
+              <label
+                htmlFor="password"
+                className="block text-xs uppercase tracking-widest font-bold text-muted-foreground mb-3"
+              >
                 Password
               </label>
               <Input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

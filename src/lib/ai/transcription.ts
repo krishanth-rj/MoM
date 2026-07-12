@@ -38,14 +38,16 @@ export async function transcribeAudio(
       if (response.status === 503) {
         throw new Error("Transcription service temporarily unavailable");
       }
-      const errorText = await response.text();
+      const _errorText = await response.text();
       throw new Error(`Transcription service error: ${response.status}`);
     }
 
     const data = await response.json();
 
     if (!data.text) {
-      throw new Error("Invalid transcription response: missing transcript text");
+      throw new Error(
+        "Invalid transcription response: missing transcript text",
+      );
     }
 
     return {
