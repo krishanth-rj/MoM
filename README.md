@@ -14,7 +14,7 @@ Do not commit `package-lock.json`, `pnpm-lock.yaml`, or `yarn.lock`.
 
 ## Guides
   1. Find the Shadcn guides [here](./docs/guides/shadcn.md)
-
+  2. Read the project documentation [here](./docs/project-documentation.md)
 
 
 ## License
