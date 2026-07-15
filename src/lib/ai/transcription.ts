@@ -19,7 +19,7 @@ export async function transcribeAudio(
   const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
 
   try {
-    const response = await fetch(whisperServiceUrl, {
+    const response = await fetch(`${whisperServiceUrl}/transcribe`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

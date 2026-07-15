@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -n next,whisper -c cyan,green \"next dev\" \"services\\transcription\\.venv\\Scripts\\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --app-dir services\\transcription\"",
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
@@ -33,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

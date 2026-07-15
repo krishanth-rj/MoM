@@ -25,9 +25,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!meetingTitle || !participants || !agenda) {
+    if (!meetingTitle) {
       return NextResponse.json(
-        { error: "meetingTitle, participants, and agenda are required" },
+        { error: "meetingTitle is required" },
         { status: 400 },
       );
     }
@@ -43,12 +43,16 @@ export async function POST(request: Request) {
       return NextResponse.json(structured);
     } catch (summarizationError: unknown) {
       // Log technical details server-side only
-      console.error("Summarization error:", summarizationError);
+      const errorMessage =
+        summarizationError instanceof Error
+          ? summarizationError.message
+          : "Unknown error";
+      console.error("Summarization error:", errorMessage);
 
-      // Return user-friendly error
+      // Return the actual error message so the user knows what happened
       return NextResponse.json(
         {
-          error: "Unable to generate meeting summary. Please try again later.",
+          error: errorMessage,
         },
         { status: 502 },
       );

@@ -33,7 +33,29 @@ export async function proxy(request: NextRequest) {
   });
 
   // Refresh the auth token to keep the session alive
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  // Protected routes — redirect to /login if not authenticated
+  const protectedPaths = ["/dashboard", "/meetings"];
+  const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
+
+  if (isProtected && !user) {
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Auth routes — redirect to /dashboard if already authenticated
+  const authPaths = ["/login"];
+  const isAuthPage = authPaths.some((p) => pathname.startsWith(p));
+
+  if (isAuthPage && user) {
+    const dashboardUrl = new URL("/dashboard", request.url);
+    return NextResponse.redirect(dashboardUrl);
+  }
 
   return supabaseResponse;
 }

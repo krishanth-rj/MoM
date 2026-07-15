@@ -131,7 +131,6 @@ export default function LoginPage() {
                 required
               />
             </div>
-          </div>
 
             <div>
               <label
@@ -149,7 +148,15 @@ export default function LoginPage() {
                 required
               />
             </div>
-          </div>
+
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting
+                ? "Submitting..."
+                : tab === "login"
+                  ? "Sign In"
+                  : "Sign Up"}
+            </Button>
+          </form>
         </div>
       </div>
     </div>
