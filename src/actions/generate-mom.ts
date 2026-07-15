@@ -1,5 +1,3 @@
-"use server";
-
 import type { StructuredOutput } from "@/lib/ai/summarization";
 
 export async function generateMom(

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { transcribeAudio } from "@/lib/ai/whisper";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/types/database";
 
 type TranscribeRequestBody = {
@@ -46,8 +47,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Use admin client for storage operations (bypasses RLS on storage.objects)
+    const adminSupabase = createAdminClient();
+
     // Fetch audio_files row
-    const { data: audioFile, error: audioError } = await supabase
+    const { data: audioFile, error: audioError } = await adminSupabase
       .from("audio_files")
       .select("storage_url")
       .eq("file_id", audio_file_id)
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
     if (!looksLikeAbsolute) {
       const bucket = process.env.SUPABASE_AUDIO_BUCKET || "meeting-audio";
       const expiresSeconds = 60;
-      const { data: signedData, error: signedError } = await supabase.storage
+      const { data: signedData, error: signedError } = await adminSupabase.storage
         .from(bucket)
         .createSignedUrl(storageUrl, expiresSeconds);
 

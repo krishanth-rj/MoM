@@ -11,29 +11,101 @@ export default function RecordAudioPage() {
   const { meetingForm, setMeetingData, meetingId } = useMeetingFlow();
 
   const [mode, setMode] = useState<"record" | "upload" | null>(null);
-  const { isRecording, elapsed, startRecording, stopRecording } =
+  const { isRecording, elapsed, audioBlob, startRecording, stopRecording } =
     useAudioRecorder();
-  const [uploaded, setUploaded] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   const handleFile = (file?: File) => {
-    if (file) setUploaded(file.name);
+    if (file) setUploadedFile(file);
   };
 
-  const handleNext = () => {
-    if (meetingForm) {
-      setMeetingData({ ...meetingForm, audioLength: elapsed || 180 });
+  const uploadAudioToStorage = async (
+    blobOrFile: Blob | File,
+    fileName: string,
+  ): Promise<{ audioFileId: string; storagePath: string } | null> => {
+    if (!meetingId) return null;
+
+    const formData = new FormData();
+    formData.append("audio", blobOrFile, fileName);
+    formData.append("meeting_id", meetingId);
+
+    const response = await fetch("/api/audio/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      console.error("Upload API error:", err);
+      return null;
+    }
+
+    const data = await response.json();
+    return { audioFileId: data.audio_file_id, storagePath: data.storage_url };
+  };
+
+  const handleNext = async () => {
+    if (!meetingForm || !meetingId) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      let audioFileId: string | undefined;
+
+      if (mode === "record" && audioBlob) {
+        const result = await uploadAudioToStorage(
+          audioBlob,
+          `recording-${Date.now()}.webm`,
+        );
+        if (!result) {
+          setUploadError("Failed to upload recording. Please try again.");
+          setIsUploading(false);
+          return;
+        }
+        audioFileId = result.audioFileId;
+      } else if (mode === "upload" && uploadedFile) {
+        const ext = uploadedFile.name.split(".").pop() || "audio";
+        const result = await uploadAudioToStorage(
+          uploadedFile,
+          `upload-${Date.now()}.${ext}`,
+        );
+        if (!result) {
+          setUploadError("Failed to upload audio file. Please try again.");
+          setIsUploading(false);
+          return;
+        }
+        audioFileId = result.audioFileId;
+      }
+
+      if (!audioFileId) {
+        setUploadError("No audio file to process. Please try again.");
+        setIsUploading(false);
+        return;
+      }
+
+      setMeetingData({
+        ...meetingForm,
+        audioLength: elapsed || 180,
+        audioFileId,
+      });
       router.push(`/meetings/${meetingId}/transcript`);
+    } catch (_err) {
+      setUploadError("An unexpected error occurred. Please try again.");
+      setIsUploading(false);
     }
   };
 
   const canProceed =
-    (mode === "record" && elapsed > 0 && !isRecording) ||
-    (mode === "upload" && uploaded);
+    (mode === "record" && audioBlob && !isRecording) ||
+    (mode === "upload" && uploadedFile);
 
   return (
     <div className="w-full px-6 md:px-12 py-12 md:py-20">
@@ -110,6 +182,16 @@ export default function RecordAudioPage() {
               {fmt(elapsed)}
             </div>
 
+            {audioBlob && !isRecording && (
+              <div className="mb-6">
+                <audio
+                  controls
+                  src={URL.createObjectURL(audioBlob)}
+                  className="mx-auto max-w-full"
+                />
+              </div>
+            )}
+
             <button
               type="button"
               onClick={isRecording ? stopRecording : startRecording}
@@ -147,7 +229,7 @@ export default function RecordAudioPage() {
             className={`border-2 border-dashed p-16 text-center cursor-pointer transition-all ${
               dragging
                 ? "border-primary bg-primary/5"
-                : uploaded
+                : uploadedFile
                   ? "border-primary bg-primary/10"
                   : "border-border hover:border-muted-foreground"
             }`}
@@ -159,13 +241,13 @@ export default function RecordAudioPage() {
               onChange={(e) => handleFile(e.target.files?.[0])}
               className="hidden"
             />
-            {uploaded ? (
+            {uploadedFile ? (
               <>
                 <span className="text-[clamp(2rem,4vw,3rem)] block mb-4">
                   ✓
                 </span>
                 <p className="text-xl font-bold uppercase tracking-tighter text-primary">
-                  {uploaded}
+                  {uploadedFile.name}
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
                   File ready to process
@@ -187,10 +269,16 @@ export default function RecordAudioPage() {
           </div>
         )}
 
+        {uploadError && (
+          <div className="mt-6 border-2 border-destructive p-4 text-destructive text-sm font-bold uppercase tracking-wider text-center">
+            {uploadError}
+          </div>
+        )}
+
         {canProceed && (
           <div className="mt-8 flex justify-end">
-            <Button onClick={handleNext} size="lg">
-              Process Audio →
+            <Button onClick={handleNext} size="lg" disabled={isUploading}>
+              {isUploading ? "Uploading..." : "Process Audio →"}
             </Button>
           </div>
         )}

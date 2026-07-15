@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { generateMom } from "@/actions/generate-mom";
 import { useMeetingFlow } from "@/components/meeting/meeting-context";
 import { MomRenderer } from "@/components/meeting/mom-renderer";
@@ -13,13 +13,14 @@ import type { StructuredOutput } from "@/lib/ai/summarization";
 
 export default function MomViewerPage() {
   const router = useRouter();
-  const { meetingData } = useMeetingFlow();
+  const { meetingData, meetingId } = useMeetingFlow();
 
   const [step, setStep] = useState<"generating" | "view">("generating");
   const [progress, setProgress] = useState(0);
   const [momText, setMomText] = useState("");
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const formatMomText = (data: StructuredOutput): string => {
     if (!data) return "";
@@ -61,6 +62,9 @@ export default function MomViewerPage() {
     return text;
   };
 
+  const [generationKey, setGenerationKey] = useState(0);
+  const retryDelayRef = useRef(5000);
+
   useEffect(() => {
     if (step !== "generating") return;
 
@@ -90,25 +94,54 @@ export default function MomViewerPage() {
         );
 
         clearInterval(iv);
-        setProgress(100);
 
         if (result.success && result.mom) {
+          setProgress(100);
           const formatted = formatMomText(result.mom);
           setMomText(formatted);
           setTimeout(() => setStep("view"), 500);
+        } else if (
+          result.error?.includes("rate limit") ||
+          result.error?.includes("rate_limit")
+        ) {
+          // Rate limited — auto-retry with exponential backoff (up to 3 times)
+          if (generationKey < 3) {
+            const delay = retryDelayRef.current;
+            retryDelayRef.current *= 2;
+            setTimeout(() => {
+              setProgress(0);
+              setGenerationKey((k) => k + 1);
+            }, delay);
+          } else {
+            setProgress(100);
+            console.error("MoM generation failed after retries:", result.error);
+            setStep("view");
+          }
         } else {
+          setProgress(100);
           console.error("MoM generation failed:", result.error);
           setStep("view");
         }
       } catch (_err) {
         clearInterval(iv);
-        console.error("MoM generation error:", _err);
-        setStep("view");
+        setProgress(100);
+        // Retry on network errors too
+        if (generationKey < 3) {
+          const delay = retryDelayRef.current;
+          retryDelayRef.current *= 2;
+          setTimeout(() => {
+            setProgress(0);
+            setGenerationKey((k) => k + 1);
+          }, delay);
+        } else {
+          console.error("MoM generation error:", _err);
+          setStep("view");
+        }
       }
     };
 
     generate();
-  }, [step, meetingData, formatMomText]);
+  }, [generationKey, meetingData, formatMomText, step]);
 
   const copy = () => {
     navigator.clipboard?.writeText(momText.replace(/\*\*/g, ""));
@@ -116,7 +149,29 @@ export default function MomViewerPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!meetingId || !momText) {
+      router.push("/dashboard");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      // Save the MoM content to the meeting
+      await fetch(`/api/meetings/${meetingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: momText,
+          status: "completed",
+        }),
+      });
+    } catch (_err) {
+      console.error("Failed to save MoM:", _err);
+    }
+
+    setSaving(false);
     router.push("/dashboard");
   };
 
